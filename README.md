@@ -1,14 +1,23 @@
 # TaskbarPing
 
-[English](#english) | [Русский](#русский)
+<p align="center">
+  <img src="images/main.png" width="520" alt="TaskbarPing on the Windows 11 taskbar: home, ya.ru and dns latency next to the weather widget and system tray">
+</p>
+
+<p align="center">
+  <sub>home / ya.ru / dns on the taskbar: green = fast, yellow = slower, red = lost<br>
+  Задержка до сервисов прямо в панели задач: зелёный – быстро, жёлтый – медленнее, красный – связи нет</sub>
+</p>
+
+<p align="center">
+  <a href="#english">English</a> | <a href="#русский">Русский</a>
+</p>
 
 ---
 
 ## English
 
 A tiny Windows 11 utility that pings your hosts over ICMP and shows the latency **right on the taskbar**, next to the system tray. Give each service a friendly name instead of an IP: `home – 1 ms`, `dns – 20 ms`.
-
-<!-- Add a screenshot: ![TaskbarPing](docs/screenshot.png) -->
 
 ### Features
 
@@ -93,8 +102,6 @@ Add your license here (e.g. MIT).
 ## Русский
 
 Небольшая утилита для Windows 11: пингует ваши хосты по ICMP и показывает задержку **прямо в панели задач**, рядом с треем. Вместо IP можно задать понятное имя: `home – 1 ms`, `dns – 20 ms`.
-
-<!-- Добавьте скриншот: ![TaskbarPing](docs/screenshot.png) -->
 
 ### Возможности
 
