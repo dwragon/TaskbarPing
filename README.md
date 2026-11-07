@@ -113,7 +113,7 @@ Windows has no official API for taskbar widgets, so TaskbarPing draws a borderle
 
 ### License
 
-Add your license here (e.g. MIT).
+MIT, read file [LICENSE](LICENSE)
 
 ---
 
@@ -215,4 +215,4 @@ dotnet publish -c Release -r win-x64 --self-contained false -p:PublishSingleFile
 
 ### Лицензия
 
-Укажите здесь свою лицензию (например, MIT).
+MIT, см. файл [LICENSE](LICENSE)
