@@ -28,6 +28,12 @@ A tiny Windows 11 utility that pings your hosts over ICMP and shows the latency 
   - 🔴 red `lost` – connection lost (2 failed pings in a row, so a single dropped packet doesn't flicker)
 - Custom names instead of IP addresses; IPs and DNS names are supported
 - Follows the system light/dark taskbar theme
+- Hover a service to get a popup card: IP address, current / average / min / max latency, packet loss and a latency graph for the last N minutes (configurable, from 1 minute up to 2 hours)
+
+  <p align="center">
+    <img src="images/main2.png" width="560" alt="Hover card: ya.ru latency graph for the last 5 minutes with average, min, max and packet loss">
+  </p>
+
 - Drag the widget with the mouse to position it; the position is saved
 - Right-click menu: reload config, open config, toggle autostart, exit
 - Hides itself while a fullscreen app, game or presentation is running
@@ -62,6 +68,7 @@ The config is created on first launch at `%AppData%\TaskbarPing\config.json`:
   "intervalMs": 1000,
   "timeoutMs": 1000,
   "goodMs": 50,
+  "historyMinutes": 5,
   "offsetX": 170
 }
 ```
@@ -72,6 +79,7 @@ The config is created on first launch at `%AppData%\TaskbarPing\config.json`:
 | `intervalMs` | Pause between pings, 500–60000 ms |
 | `timeoutMs` | Timeout of a single ping, 200–5000 ms |
 | `goodMs` | Latency up to this value is green, higher is yellow |
+| `historyMinutes` | How much history the hover popup shows (statistics and graph), 1–120 minutes. Default: 5 |
 | `offsetX` | Distance from the notification area to the widget (px at 100% scale); changed by dragging |
 
 Changes are picked up automatically within a couple of seconds (or use "Reload config" in the menu). An invalid config is ignored and the previous settings stay active.
@@ -93,10 +101,19 @@ Windows has no official API for taskbar widgets, so TaskbarPing draws a borderle
 - Only a horizontal taskbar is supported; the widget is shown on the primary monitor
 - The taskbar position is read from the shell windows (`Shell_TrayWnd` / `TrayNotifyWnd`), so future Windows updates may require adjustments
 
+### Changelog
+
+**1.1.0**
+- New: hover popup card with IP address, current / average / min / max latency, packet loss and a latency graph
+- New: `historyMinutes` setting (1–120, default 5) to choose how much history the popup shows
+- The popup is click-through, never steals focus and follows the light/dark theme
+
+**1.0.0**
+- Initial release: latency of up to 6 hosts on the taskbar, color indication, custom names, drag to position, autostart
+
 ### License
 
-MIT, watch file [LICENSE](LICENSE)
-
+Add your license here (e.g. MIT).
 
 ---
 
@@ -113,6 +130,12 @@ MIT, watch file [LICENSE](LICENSE)
   - 🔴 красный `lost` – связь пропала (2 неудачных пинга подряд, чтобы один потерянный пакет не мигал)
 - Свои имена вместо IP; поддерживаются и IP-адреса, и DNS-имена
 - Подстраивается под светлую/тёмную тему панели задач
+- При наведении на сервис появляется карточка: IP-адрес, текущая / средняя / минимальная / максимальная задержка, процент потерь и график задержки за последние N минут (настраивается: от 1 минуты до 2 часов)
+
+  <p align="center">
+    <img src="images/main2.png" width="560" alt="Карточка при наведении: график задержки ya.ru за 5 минут, средняя, минимальная, максимальная задержка и процент потерь">
+  </p>
+
 - Виджет можно перетащить мышью, позиция сохраняется
 - Меню по правому клику: перезагрузить конфиг, открыть конфиг, автозапуск, выход
 - Прячется, пока открыто полноэкранное приложение, игра или презентация
@@ -147,6 +170,7 @@ dotnet publish -c Release -r win-x64 --self-contained false -p:PublishSingleFile
   "intervalMs": 1000,
   "timeoutMs": 1000,
   "goodMs": 50,
+  "historyMinutes": 5,
   "offsetX": 170
 }
 ```
@@ -157,6 +181,7 @@ dotnet publish -c Release -r win-x64 --self-contained false -p:PublishSingleFile
 | `intervalMs` | Пауза между пингами, 500–60000 мс |
 | `timeoutMs` | Таймаут одного пинга, 200–5000 мс |
 | `goodMs` | Задержка до этого значения – зелёная, выше – жёлтая |
+| `historyMinutes` | Сколько истории показывать в карточке при наведении (статистика и график), 1–120 минут. По умолчанию 5 |
 | `offsetX` | Отступ виджета от области уведомлений (px при масштабе 100%); меняется перетаскиванием |
 
 Изменения подхватываются автоматически в течение пары секунд (или пунктом «Перезагрузить конфиг» в меню). Некорректный конфиг игнорируется, остаются прежние настройки.
@@ -178,6 +203,16 @@ dotnet publish -c Release -r win-x64 --self-contained false -p:PublishSingleFile
 - Поддерживается только горизонтальная панель задач; виджет отображается на основном мониторе
 - Положение панели определяется по окнам оболочки (`Shell_TrayWnd` / `TrayNotifyWnd`), поэтому после обновлений Windows может потребоваться доработка
 
+### История изменений
+
+**1.1.0**
+- Новое: карточка при наведении с IP-адресом, текущей / средней / минимальной / максимальной задержкой, процентом потерь и графиком задержки
+- Новое: параметр `historyMinutes` (1–120, по умолчанию 5) – сколько истории показывать в карточке
+- Карточка не перехватывает мышь и фокус, подстраивается под светлую/тёмную тему
+
+**1.0.0**
+- Первый релиз: задержка до 6 хостов в панели задач, цветовая индикация, свои имена, перетаскивание, автозапуск
+
 ### Лицензия
 
-MIT, см. файл [LICENSE](LICENSE)
+Укажите здесь свою лицензию (например, MIT).

@@ -12,7 +12,8 @@ namespace TaskbarPing;
 
 /// <summary>
 /// Прозрачное окно без рамки поверх панели задач (per-pixel alpha).
-/// Две строки на сервис: имя (серым) и задержка (цветом). Тянется мышью, правый клик - меню.
+/// Две строки на сервис: имя (серым) и задержка (цветом). Тянется мышью, правый клик - меню,
+/// при наведении - карточка с графиком и статистикой.
 /// </summary>
 internal sealed class WidgetForm : Form
 {
@@ -21,6 +22,7 @@ internal sealed class WidgetForm : Form
     private DateTime _cfgStamp;
 
     private readonly System.Windows.Forms.Timer _timer = new System.Windows.Forms.Timer { Interval = 500 };
+    private readonly System.Windows.Forms.Timer _hoverTimer = new System.Windows.Forms.Timer { Interval = 150 };
     private readonly ContextMenuStrip _menu = new ContextMenuStrip();
     private readonly ToolStripMenuItem _miAutostart;
 
@@ -39,6 +41,14 @@ internal sealed class WidgetForm : Form
     private Bitmap? _bmp;
     private string _renderKey = "";
     private bool _needPresent = true;
+    private List<(float L, float R)> _colSpans = new List<(float L, float R)>();
+
+    // всплывающая карточка
+    private HistoryPopup? _popup;
+    private int _hoverIndex = -1;
+    private long _hoverStart;
+    private long _popupRenderedAt;
+    private int _popupIndex = -1;
 
     private readonly string _fontFamily;
     private Font? _nameFont;
@@ -73,6 +83,7 @@ internal sealed class WidgetForm : Form
         _menu.Opening += (_, _) => _miAutostart.Checked = Autostart.IsEnabled();
 
         _timer.Tick += OnTick;
+        _hoverTimer.Tick += OnHoverTick;
     }
 
     protected override CreateParams CreateParams
@@ -97,11 +108,15 @@ internal sealed class WidgetForm : Form
         base.OnShown(e);
         UpdateLayout();
         _timer.Start();
+        _hoverTimer.Start();
     }
 
     protected override void OnFormClosed(FormClosedEventArgs e)
     {
         _timer.Stop();
+        _hoverTimer.Stop();
+        _popup?.Close();
+        _popup?.Dispose();
         _monitor.Dispose();
         _bmp?.Dispose();
         _nameFont?.Dispose();
@@ -126,6 +141,7 @@ internal sealed class WidgetForm : Form
                 _hiddenFullscreen = hide;
                 Native.ShowWindow(Handle, hide ? Native.SW_HIDE : Native.SW_SHOWNOACTIVATE);
                 _needPresent = true;
+                if (hide) HidePopup();
             }
 
             if (hide) return;
@@ -148,6 +164,75 @@ internal sealed class WidgetForm : Form
         // полноэкранное приложение / игра / презентация -> прячемся
         if (Native.SHQueryUserNotificationState(out int state) != 0) return false;
         return state == 2 || state == 3 || state == 4;
+    }
+
+    // ---------- наведение: карточка с графиком ----------
+
+    private void HidePopup()
+    {
+        _hoverIndex = -1;
+        _popupIndex = -1;
+        _popup?.HidePopup();
+    }
+
+    private int HitColumn(float relX)
+    {
+        for (int i = 0; i < _colSpans.Count; i++)
+        {
+            if (relX < _colSpans[i].R + 8 * _scale) return i;
+        }
+        return _colSpans.Count - 1;
+    }
+
+    private void OnHoverTick(object? sender, EventArgs e)
+    {
+        try
+        {
+            Point cur = Cursor.Position;
+            bool over = !_dragging && !_hiddenFullscreen && !_menu.Visible && _bmp != null
+                        && _colSpans.Count > 0 && new Rectangle(_loc, _bmpSize).Contains(cur);
+            if (!over)
+            {
+                if (_popup != null && _popup.Visible) HidePopup();
+                _hoverIndex = -1;
+                return;
+            }
+
+            int idx = HitColumn(cur.X - _loc.X);
+            long now = Environment.TickCount64;
+            if (idx != _hoverIndex)
+            {
+                _hoverIndex = idx;
+                _hoverStart = now;
+            }
+
+            bool visible = _popup != null && _popup.Visible;
+            bool delayPassed = now - _hoverStart >= 300;
+            if (!visible && !delayPassed) return;
+
+            // перерисовываем при смене колонки и примерно раз в полсекунды
+            if (idx != _popupIndex || !visible || now - _popupRenderedAt >= 500)
+                ShowPopup(idx, now);
+        }
+        catch
+        {
+            // ignore
+        }
+    }
+
+    private void ShowPopup(int idx, long now)
+    {
+        if (idx < 0 || idx >= _monitor.States.Count) return;
+        if (!TryGetTaskbar(out Native.RECT tb)) return;
+
+        _popup ??= new HistoryPopup(_fontFamily);
+        var taskbar = new Rectangle(tb.Left, tb.Top, tb.Right - tb.Left, tb.Bottom - tb.Top);
+        Rectangle screen = Screen.FromPoint(Cursor.Position).Bounds;
+        int anchorX = _loc.X + (int)((_colSpans[idx].L + _colSpans[idx].R) / 2f);
+
+        _popup.ShowFor(_monitor.States[idx], _cfg, _lightTheme, _scale, anchorX, taskbar, screen);
+        _popupIndex = idx;
+        _popupRenderedAt = now;
     }
 
     // ---------- раскладка и отрисовка ----------
@@ -183,17 +268,17 @@ internal sealed class WidgetForm : Form
             if (r == ServiceState.Unknown)
             {
                 text = "…";
-                color = Neutral();
+                color = Theme.Neutral(_lightTheme);
             }
             else if (r == ServiceState.Lost)
             {
                 text = "lost";
-                color = Red();
+                color = Theme.Red(_lightTheme);
             }
             else
             {
                 text = r < 1 ? "<1 ms" : r + " ms";
-                color = r <= _cfg.GoodMs ? Green() : Yellow();
+                color = r <= _cfg.GoodMs ? Theme.Green(_lightTheme) : Theme.Yellow(_lightTheme);
             }
             items.Add((st.Name, text, color));
         }
@@ -218,7 +303,7 @@ internal sealed class WidgetForm : Form
         if (_needPresent || loc != _loc)
         {
             _loc = loc;
-            Present(_bmp, loc);
+            Layered.Present(Handle, _bmp, loc);
             _needPresent = false;
         }
     }
@@ -257,54 +342,21 @@ internal sealed class WidgetForm : Form
         g.Clear(Color.FromArgb(1, 0, 0, 0));
         g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
 
+        var spans = new List<(float L, float R)>();
         float top = (height - (nameH + valH)) / 2f;
         float x = padX;
-        using var nameBrush = new SolidBrush(_lightTheme ? Color.FromArgb(96, 96, 96) : Color.FromArgb(190, 190, 190));
+        using var nameBrush = new SolidBrush(Theme.Sub(_lightTheme));
         for (int i = 0; i < items.Count; i++)
         {
             g.DrawString(items[i].Name, _nameFont!, nameBrush, x, top, fmt);
             using var valBrush = new SolidBrush(items[i].Color);
             g.DrawString(items[i].Value, _valueFont!, valBrush, x, top + nameH, fmt);
+            spans.Add((x, x + colW[i]));
             x += colW[i] + gap;
         }
 
+        _colSpans = spans;
         return bmp;
-    }
-
-    private void Present(Bitmap bmp, Point loc)
-    {
-        IntPtr screenDc = Native.GetDC(IntPtr.Zero);
-        IntPtr memDc = Native.CreateCompatibleDC(screenDc);
-        IntPtr hBmp = IntPtr.Zero;
-        IntPtr old = IntPtr.Zero;
-        try
-        {
-            hBmp = bmp.GetHbitmap(Color.FromArgb(0));
-            old = Native.SelectObject(memDc, hBmp);
-
-            var size = new Native.SIZE { cx = bmp.Width, cy = bmp.Height };
-            var src = new Native.POINT { X = 0, Y = 0 };
-            var dst = new Native.POINT { X = loc.X, Y = loc.Y };
-            var blend = new Native.BLENDFUNCTION
-            {
-                BlendOp = Native.AC_SRC_OVER,
-                BlendFlags = 0,
-                SourceConstantAlpha = 255,
-                AlphaFormat = Native.AC_SRC_ALPHA
-            };
-
-            Native.UpdateLayeredWindow(Handle, screenDc, ref dst, ref size, memDc, ref src, 0, ref blend, Native.ULW_ALPHA);
-        }
-        finally
-        {
-            if (hBmp != IntPtr.Zero)
-            {
-                Native.SelectObject(memDc, old);
-                Native.DeleteObject(hBmp);
-            }
-            Native.DeleteDC(memDc);
-            Native.ReleaseDC(IntPtr.Zero, screenDc);
-        }
     }
 
     private void EnsureFonts(float scale)
@@ -334,13 +386,6 @@ internal sealed class WidgetForm : Form
         return "Arial";
     }
 
-    // ---------- цвета (тёмная и светлая панель задач) ----------
-
-    private Color Green() => _lightTheme ? Color.FromArgb(16, 130, 60) : Color.FromArgb(80, 220, 110);
-    private Color Yellow() => _lightTheme ? Color.FromArgb(170, 115, 0) : Color.FromArgb(255, 205, 60);
-    private Color Red() => _lightTheme ? Color.FromArgb(196, 30, 30) : Color.FromArgb(255, 85, 85);
-    private Color Neutral() => _lightTheme ? Color.FromArgb(110, 110, 110) : Color.FromArgb(150, 150, 150);
-
     private static bool IsLightTaskbar()
     {
         try
@@ -368,6 +413,7 @@ internal sealed class WidgetForm : Form
         _cfgStamp = SafeStamp();
         if (!AppConfig.TryLoad(out AppConfig fresh, out _)) return; // файл битый - оставляем текущие настройки
 
+        HidePopup();
         PingMonitor old = _monitor;
         _cfg = fresh;
         _monitor = new PingMonitor(_cfg);
@@ -394,6 +440,7 @@ internal sealed class WidgetForm : Form
         base.OnMouseDown(e);
         if (e.Button == MouseButtons.Left)
         {
+            HidePopup();
             _dragging = true;
             _grabDx = Cursor.Position.X - _loc.X;
         }
@@ -421,6 +468,7 @@ internal sealed class WidgetForm : Form
         }
         else if (e.Button == MouseButtons.Right)
         {
+            HidePopup();
             Native.SetForegroundWindow(Handle);
             _menu.Show(Cursor.Position);
         }

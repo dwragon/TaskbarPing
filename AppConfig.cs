@@ -32,6 +32,9 @@ internal sealed class AppConfig
     /// <summary>До этого значения (включительно) число зелёное, выше - жёлтое.</summary>
     public int GoodMs { get; set; } = 50;
 
+    /// <summary>Сколько минут истории показывать на графике при наведении (1-120).</summary>
+    public int HistoryMinutes { get; set; } = 5;
+
     /// <summary>Отступ виджета влево от области уведомлений (в пикселях при 100% масштаба).</summary>
     public int OffsetX { get; set; } = 170;
 
@@ -121,6 +124,7 @@ internal sealed class AppConfig
         IntervalMs = Math.Clamp(IntervalMs, 500, 60000);
         TimeoutMs = Math.Clamp(TimeoutMs, 200, 5000);
         GoodMs = Math.Clamp(GoodMs, 1, 5000);
+        HistoryMinutes = Math.Clamp(HistoryMinutes, 1, 120);
         OffsetX = Math.Clamp(OffsetX, -20, 4000);
     }
 
