@@ -95,7 +95,8 @@ Windows has no official API for taskbar widgets, so TaskbarPing draws a borderle
 
 ### License
 
-Add your license here (e.g. MIT).
+MIT, watch file [LICENSE](LICENSE)
+
 
 ---
 
